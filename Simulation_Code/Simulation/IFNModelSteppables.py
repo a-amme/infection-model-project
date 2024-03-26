@@ -15,7 +15,7 @@ IFNe_diffusion_coefficient = 1.0 / 10.0  # vl^2 / min
 
 Replicate = Parameters.R
 
-folder_path = '/Users/Emma/Documents/GitHub/infection-model-project'
+folder_path = 'C:\CompuCell3D\Simulations\joaponte_IFN_model'
 if not os.path.exists(folder_path):
     os.makedirs(folder_path)
 
@@ -104,6 +104,7 @@ IFN_model_string = '''
 # IFN Decay Rate
 t2 = 3.481
 
+
 class ODEModelSteppable(SteppableBasePy):
     def __init__(self, frequency=1):
         SteppableBasePy.__init__(self, frequency)
@@ -129,12 +130,13 @@ class ODEModelSteppable(SteppableBasePy):
 
         # Initial conditions: infected cell in the center
         cell = self.cell_field[self.dim.x // 2, self.dim.y // 2, 0]
-        cell.type = self.I1
+        cell.type = self.I2
         cell.sbml.VModel['V'] = 6.9e-3
         self.sbml.FluModel['I1'] = 1.0 / self.shared_steppable_vars['InitialNumberCells']
         self.sbml.FluModel['V'] = 0.0
 
         # Set prestimulated internal protein values
+        # IFNWash=1
         if IFNWash:
             for cell in self.cell_list_by_type(self.U, self.I1):
                 cell.sbml.IModel['IFN'] = 0.035
@@ -161,66 +163,67 @@ class CellularModelSteppable(SteppableBasePy):
         self.secretorV = self.get_field_secretor("Virus")
 
     def step(self, mcs):
-        ## Measure amount of IFNe in the Field
+        pass
         self.shared_steppable_vars['ExtracellularIFN_Field'] = 0
-        for cell in self.cell_list_by_type(self.U, self.I1, self.I2):
-            self.shared_steppable_vars['ExtracellularIFN_Field'] += self.secretorIFN.amountSeenByCell(cell)
-
-        ## Production of IFNe
-        # E2b: IFN -> IFNe; k21 * IFN ;
-        for cell in self.cell_list_by_type(self.U, self.I1, self.I2):
-            intracellularIFN = cell.sbml.IModel['IFN']
-            k21 = cell.sbml.IModel['k21'] * hours_to_mcs
-            p = k21 * intracellularIFN
-            self.secretorIFN.secreteInsideCellTotalCount(cell, p / cell.volume)
-
-        ## Measure amount of extracellular virus field
         self.shared_steppable_vars['ExtracellularVirus_Field'] = 0
         for cell in self.cell_list:
+
+            if cell.type == self.U or cell.type == self.I1 or cell.type == self.I2:
+                ## Measure amount of IFNe in the Field
+                self.shared_steppable_vars['ExtracellularIFN_Field'] += self.secretorIFN.amountSeenByCell(cell)
+
+                ## Production of IFNe
+                # E2b: IFN -> IFNe; k21 * IFN ;
+                intracellularIFN = cell.sbml.IModel['IFN']
+                k21 = cell.sbml.IModel['k21'] * hours_to_mcs
+                p = k21 * intracellularIFN
+                self.secretorIFN.secreteInsideCellTotalCount(cell, p / cell.volume)
+
+            ## Measure amount of extracellular virus field
             V = self.secretorV.amountSeenByCell(cell)
             self.shared_steppable_vars['ExtracellularVirus_Field'] += V
 
-        ## Production of extracellular virus
-        # E8b: V -> ; k73 * V
-        for cell in self.cell_list_by_type(self.I2):
-            k73 = cell.sbml.VModel['k73'] * hours_to_mcs
-            Virus = cell.sbml.VModel['V']
-            p = k73 * Virus * 1094460.28
-            self.secretorV.secreteInsideCellTotalCount(cell, p / cell.volume)
+            if cell.type == self.I2:
 
-        ## P to D transition
-        # E7a: P -> ; P * k61 * V;
-        for cell in self.cell_list_by_type(self.I2):
-            k61 = cell.sbml.VModel['k61'] * hours_to_mcs
-            H = cell.sbml.VModel['H']
-            V = cell.sbml.VModel['V']
-            r = k61 * V * (1 - H)
-            p_I2toD = 1.0 - np.exp(-r)
-            if np.random.random() < p_I2toD:
-                cell.type = self.DEAD
+                ## Production of extracellular virus
+                # E8b: V -> ; k73 * V
+                k73 = cell.sbml.VModel['k73'] * hours_to_mcs
+                Virus = cell.sbml.VModel['V']
+                p = k73 * Virus * 1094460.28
+                self.secretorV.secreteInsideCellTotalCount(cell, p / cell.volume)
 
-        ## I1 to I2 transition
-        # E2: I1 -> I2 ; k * I1
-        for cell in self.cell_list_by_type(self.I1):
-            k = self.sbml.FluModel['k'] * days_to_mcs
-            r = k
-            p_T1oI2 = 1.0 - np.exp(-r)
-            if np.random.random() < p_T1oI2:
-                cell.type = self.I2
+                ## P to D transition
+                # E7a: P -> ; P * k61 * V;
+                k61 = cell.sbml.VModel['k61'] * hours_to_mcs
+                H = cell.sbml.VModel['H']
+                V = cell.sbml.VModel['V']
+                r = k61 * V * (1 - H)
+                p_I2toD = 1.0 - np.exp(-r)
+                if np.random.random() < p_I2toD:
+                    cell.type = self.DEAD
 
-        ## U to I1 transition
-        # E1: T -> I1 ; beta * V * T
-        for cell in self.cell_list_by_type(self.U):
-            b = self.sbml.FluModel['beta'] * self.shared_steppable_vars['InitialNumberCells'] * days_to_mcs
-            V = self.secretorV.amountSeenByCell(cell)
-            r = b * V
-            p_UtoI1 = 1.0 - np.exp(-r)
-            if np.random.random() < p_UtoI1:
-                cell.type = self.I1
-                cell.sbml.VModel['V'] = 6.9e-8
+            if cell.type == self.I1:
 
-        ## Updating Cellular Models
-        for cell in self.cell_list:
+                ## I1 to I2 transition
+                # E2: I1 -> I2 ; k * I1
+                k = self.sbml.FluModel['k'] * days_to_mcs
+                r = k
+                p_T1oI2 = 1.0 - np.exp(-r)
+                if np.random.random() < p_T1oI2:
+                    cell.type = self.I2
+
+            if cell.type == self.U:
+                ## U to I1 transition
+                # E1: T -> I1 ; beta * V * T
+                b = self.sbml.FluModel['beta'] * self.shared_steppable_vars['InitialNumberCells'] * days_to_mcs
+                V = self.secretorV.amountSeenByCell(cell)
+                r = b * V
+                p_UtoI1 = 1.0 - np.exp(-r)
+                if np.random.random() < p_UtoI1:
+                    cell.type = self.I1
+                    cell.sbml.VModel['V'] = 6.9e-8
+
+            ## Updating Cellular Models
             cell.sbml.VModel['IFNe'] = self.secretorIFN.amountSeenByCell(cell)
             cell.sbml.IModel['IFNe'] = self.secretorIFN.amountSeenByCell(cell)
             cell.sbml.IModel['H'] = cell.sbml.VModel['H']
