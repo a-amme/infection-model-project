@@ -11,7 +11,7 @@ CompuCellSetup.register_steppable(steppable=CellularModelSteppable(frequency=1))
 # from IFNModelSteppables import PlaqueAssaySteppable
 # CompuCellSetup.register_steppable(steppable=PlaqueAssaySteppable(frequency=1))
 
-# from IFNModelSteppables import OutputSteppable
-# CompuCellSetup.register_steppable(steppable=OutputSteppable(frequency=1))
+from IFNModelSteppables import OutputSteppable
+CompuCellSetup.register_steppable(steppable=OutputSteppable(frequency=1))
 
 CompuCellSetup.run()
