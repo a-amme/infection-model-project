@@ -136,7 +136,7 @@ class ODEModelSteppable(SteppableBasePy):
         self.sbml.FluModel['V'] = 0.0
 
         # Set prestimulated internal protein values
-        # IFNWash=1
+        #IFNWash=1
         if IFNWash:
             for cell in self.cell_list_by_type(self.U, self.I1):
                 cell.sbml.IModel['IFN'] = 0.035
@@ -148,7 +148,45 @@ class ODEModelSteppable(SteppableBasePy):
 class CellularModelSteppable(SteppableBasePy):
     def __init__(self, frequency=1):
         SteppableBasePy.__init__(self, frequency)
-
+    
+    
+    def add_steering_panel(self):
+        self.add_steering_param(name='IFN_diffusion', val=1.0, enum=[0.1, 1.0, 10.0, 100.0],
+                                    widget_name='combobox')
+        self.add_steering_param(name='Virus_diffusion', val=1.0, enum=[0.1, 1.0, 10.0, 100.0],
+                                    widget_name='combobox')
+        self.add_steering_param(name='IFN_decay', val=1.0, enum=[0.1, 1.0, 10.0, 100.0],
+                                    widget_name='combobox')
+        self.add_steering_param(name='Virus_decay', val=1.0, enum=[0.1, 1.0, 10.0, 100.0],
+                                    widget_name='combobox')
+        self.add_steering_param(name='rate_Health_loss', val=1.0, enum=[0.01, 0.1, 1.0, 10.0, 100.0],
+                                    widget_name='combobox')
+        self.add_steering_param(name='STAT_activation', val=1.0, enum=[0.01, 0.1, 1.0, 10.0, 100.0],
+                                    widget_name='combobox')
+        self.add_steering_param(name='RIGI_activity', val=1.0, enum=[0.01, 0.1, 1.0, 10.0, 100.0],
+                                    widget_name='combobox')
+    
+    def process_steering_panel_data(self):
+        print ('processing steering panel updates')
+        print ('all dirty flag=', self.steering_param_dirty())
+        IFN_diffusion = self.get_steering_param('IFN_diffusion')
+        Virus_diffusion = self.get_steering_param('Virus_diffusion')
+        IFN_decay = self.get_steering_param('IFN_decay')
+        Virus_decay = self.get_steering_param('Virus_decay')
+        rate_Health_loss = self.get_steering_param('rate_Health_loss')
+        STAT_activation = self.get_steering_param('STAT_activation')
+        RIGI_activity = self.get_steering_param('RIGI_activity')
+        
+        self.get_xml_element('IFNe_dc').cdata = IFNe_diffusion_coefficient * min_to_mcs * IFN_diffusion
+        self.get_xml_element('virus_dc').cdata = virus_diffusion_coefficient * min_to_mcs * Virus_diffusion
+        self.get_xml_element('IFNe_decay').cdata = t2 * hours_to_mcs * IFN_decay
+        self.get_xml_element('virus_decay').cdata = self.sbml.FluModel['c'] * days_to_mcs * Virus_decay
+        
+        for cell in self.cell_list:
+            cell.sbml.VModel['k61'] *= rate_Health_loss
+            cell.sbml.IModel['k31'] *= STAT_activation
+            cell.sbml.IModel['k51'] *= RIGI_activity
+        
     def start(self):
         # Set IFNe diffusion parameters
         self.get_xml_element('IFNe_dc').cdata = IFNe_diffusion_coefficient * min_to_mcs
@@ -238,20 +276,44 @@ class OutputSteppable(SteppableBasePy):
 
     def start(self):
         # Output Cellular Data
-        file_name1 = 'FullModelCellular_%i.txt' % Replicate
-        self.output1 = open(folder_path + file_name1, 'w')
-        self.output1.write("%s,%s,%s,%s,%s,%s,%s\n" % ('Time', 'U', 'I1', 'I2', 'D', 'Ve', 'IFNe'))
-        self.output1.flush()
+        #file_name1 = 'FullModelCellular_%i.txt' % Replicate
+        #self.output1 = open(folder_path + file_name1, 'w')
+        #self.output1.write("%s,%s,%s,%s,%s,%s,%s\n" % ('Time', 'U', 'I1', 'I2', 'D', 'Ve', 'IFNe'))
+        #self.output1.flush()
 
         # Output Intracellular Data
-        file_name2 = 'FullModelIntracellular_%i.txt' % Replicate
-        self.output2 = open(folder_path + file_name2, 'w')
-        self.output2.write("%s,%s,%s,%s,%s,%s,%s,%s,%s\n" %
-                           ('Time', 'V', 'H', 'P', 'IFNe', 'STATP', 'IRF7', 'IRF7P', 'IFN'))
-        self.output2.flush()
+        #file_name2 = 'FullModelIntracellular_%i.txt' % Replicate
+        #self.output2 = open(folder_path + file_name2, 'w')
+        #self.output2.write("%s,%s,%s,%s,%s,%s,%s,%s,%s\n" %
+        #                   ('Time', 'V', 'H', 'P', 'IFNe', 'STATP', 'IRF7', 'IRF7P', 'IFN'))
+        #self.output2.flush()
 
         # IFNe secretor
         self.secretorIFNe = self.get_field_secretor("IFNe")
+        
+        self.plot_win = self.add_new_plot_window(title='Cell Types',
+                                                 x_axis_title='Time [h]',
+                                                 y_axis_title='Fraction', x_scale_type='linear', y_scale_type='linear',
+                                                 grid=False)
+        self.plot_win.add_plot("U Cells", style='Lines', color='blue', size=5)
+        self.plot_win.add_plot("I1 Cells", style='Lines', color='orange', size=5)
+        self.plot_win.add_plot("I2 Cells", style='Lines', color='red', size=5)
+        self.plot_win.add_plot("D Cells", style='Lines', color='purple', size=5)
+        
+        self.plot_win2 = self.add_new_plot_window(title='Average Extracellular Virus',
+                                                 x_axis_title='Time [h]',
+                                                 y_axis_title='PFU/mL', x_scale_type='linear', y_scale_type='linear',
+                                                 grid=False)
+        self.plot_win2.add_plot("Virus", style='Lines', color='red', size=5)
+        
+        self.plot_win3 = self.add_new_plot_window(title='Average Extracellular IFN',
+                                                 x_axis_title='Time [h]',
+                                                 y_axis_title='micro Mol', x_scale_type='linear', y_scale_type='linear',
+                                                 grid=False)
+        self.plot_win3.add_plot("IFN", style='Lines', color='red', size=5)
+        
+        
+        
 
     def step(self, mcs):
         Time = mcs * hours_to_mcs
@@ -264,8 +326,8 @@ class OutputSteppable(SteppableBasePy):
         for cell in self.cell_list:
             IFNe += self.secretorIFNe.amountSeenByCell(cell)
 
-        self.output1.write("%e,%e,%e,%e,%e,%e,%e\n" % (Time, U, I1, I2, D, Ve, IFNe))
-        self.output1.flush()
+        #self.output1.write("%e,%e,%e,%e,%e,%e,%e\n" % (Time, U, I1, I2, D, Ve, IFNe))
+        #self.output1.flush()
 
         L = len(self.cell_list_by_type(self.U, self.I1, self.I2))
         P = L / self.shared_steppable_vars['InitialNumberCells']
@@ -284,9 +346,16 @@ class OutputSteppable(SteppableBasePy):
             IFN += cell.sbml.IModel['IFN'] / L
         IFNe = self.shared_steppable_vars['ExtracellularIFN_Field'] \
                / self.shared_steppable_vars['InitialNumberCells']
-        self.output2.write("%e,%e,%e,%e,%e,%e,%e,%e,%e\n" %
-                           (Time, V, H, P, IFNe, STATP, IRF7, IRF7P, IFN))
-        self.output2.flush()
+        #self.output2.write("%e,%e,%e,%e,%e,%e,%e,%e,%e\n" %
+        #                   (Time, V, H, P, IFNe, STATP, IRF7, IRF7P, IFN))
+        #self.output2.flush()
+        
+        self.plot_win.add_data_point("U Cells", mcs*hours_to_mcs, U)
+        self.plot_win.add_data_point("I1 Cells", mcs*hours_to_mcs, I1)
+        self.plot_win.add_data_point("I2 Cells", mcs*hours_to_mcs, I2)
+        self.plot_win.add_data_point("D Cells", mcs*hours_to_mcs, D)
+        self.plot_win2.add_data_point("Virus", mcs*hours_to_mcs, Ve)
+        self.plot_win3.add_data_point("IFN", mcs*hours_to_mcs, IFNe)
 
 
 class PlaqueAssaySteppable(SteppableBasePy):
