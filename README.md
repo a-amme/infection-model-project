@@ -1,11 +1,11 @@
 # Replication and Optimization of a Multicellular Spatial Model of IFN Response to Viral Infection
 
 This respository holds materials for our replication and optimization of the simulation reported in the paper
-[**Multicellular Spatial Model of RNA Virus Replication and Interferon Responses Reveals Factors Controlling Plaque Growth Dynamics**]
-(https://www.biorxiv.org/content/10.1101/2021.03.16.435618v1).
+**Multicellular Spatial Model of RNA Virus Replication and Interferon Responses Reveals Factors Controlling Plaque Growth Dynamics**: 
+https://www.biorxiv.org/content/10.1101/2021.03.16.435618v1.
 
-The original model code can be found here on GitHub in [the repository **Multicellular Spatial Model of RNA Virus Replication**]
-(https://github.com/ImmuSystems-Lab/Multicellular_Spatial_Model_of_RNA_Virus_Replication)
+The original model code can be found here on GitHub in the repository **Multicellular Spatial Model of RNA Virus Replication**: 
+https://github.com/ImmuSystems-Lab/Multicellular_Spatial_Model_of_RNA_Virus_Replication.
 
 This model is designed to be accessible regardless of experience with computer programming, though its use 
 requires a working [installation of CompuCell3D](https://compucell3d.org/SrcBin). Running a simulated 
