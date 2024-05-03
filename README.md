@@ -16,8 +16,9 @@ by influenza and SARS-CoV), and multiplicity of infection for the seeding of the
 simulated cell culture with the virus can be changed by dragging sliders in a window 
 which appears upon simulation start. 
 
-Model details and biological background are given in [this paper](). To facilitate exploration for the 
-curious, we suggest the following exercises: 
+Model details and biological background are given in 
+[this paper](https://github.com/a-amme/infection-model-project/blob/main/model_details.pdf). 
+To facilitate exploration for the curious, we suggest the following exercises: 
 
 <ol>
   <li>
